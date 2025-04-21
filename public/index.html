@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Healing Path - AI Therapist</title>
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600&display=swap" rel="stylesheet"/>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Quicksand', sans-serif;
+      margin: 0;
+      display: flex;
+      background-color: #f0f4ef;
+    }
+
+    .profile-panel {
+      position: fixed;
+      left: -220px;
+      top: 0;
+      height: 100%;
+      width: 220px;
+      background-color: #a8dadc;
+      transition: left 0.4s ease;
+      padding: 20px;
+      z-index: 5;
+    }
+
+    .profile-panel:hover {
+      left: 0;
+    }
+
+    .profile-panel h2 {
+      font-size: 1.1em;
+      margin-top: 0;
+    }
+
+    .profile-panel input[type="text"],
+    .profile-panel input[type="number"] {
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 6px;
+      border: none;
+      border-radius: 6px;
+    }
+
+    .profile-panel input[type="file"] {
+      margin-bottom: 10px;
+    }
+
+    .profile-img {
+      width: 80px;
+      height: 80px;
+      object-fit: cover;
+      border-radius: 50%;
+      margin-bottom: 10px;
+    }
+
+    .sidebar {
+      width: 20%;
+      padding: 20px;
+      background-color: #d8e2dc;
+      height: 100vh;
+      overflow-y: auto;
+      border-right: 1px solid #ccc;
+    }
+
+    .sidebar h2 {
+      margin-top: 0;
+      font-size: 1.3em;
+      color: #354f52;
+    }
+
+    #newChatBtn {
+      background-color: #cad2c5;
+      color: #354f52;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 0.9em;
+      margin-bottom: 15px;
+    }
+
+    .main {
+      width: 80%;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background-color: #84a98c;
+      color: white;
+      padding: 8px 20px;
+      border-radius: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #fadeInGreeting {
+      font-size: 1.5em;
+      text-align: center;
+      color: #354f52;
+      opacity: 0;
+      animation: fadeIn 2s ease-in-out forwards;
+      margin: 20px 0;
+    }
+
+    @keyframes fadeIn {
+      to {
+        opacity: 1;
+      }
+    }
+
+    #chatbox {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      background-color: #f8f9fa;
+    }
+
+    .message {
+      margin: 10px 0;
+      padding: 12px;
+      border-radius: 10px;
+      max-width: 75%;
+      line-height: 1.5;
+    }
+
+    .user {
+      background-color: #cce3de;
+      align-self: flex-end;
+      text-align: right;
+    }
+
+    .ai {
+      background-color: #edf6f9;
+      align-self: flex-start;
+    }
+
+    form {
+      display: flex;
+    }
+
+    input[type="text"] {
+      flex-grow: 1;
+      padding: 10px;
+      font-size: 1em;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      margin-right: 10px;
+    }
+
+    button {
+      padding: 10px 20px;
+      background-color: #52796f;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1em;
+      cursor: pointer;
+    }
+
+    ul#history {
+      list-style-type: none;
+      padding: 0;
+      font-size: 0.9em;
+      color: #555;
+    }
+
+    ul#history li {
+      padding: 6px;
+      border-radius: 6px;
+      background-color: #f0efeb;
+      margin-bottom: 5px;
+      cursor: pointer;
+    }
+
+    ul#history li:hover {
+      background-color: #e9edc9;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Slide-in Profile Panel -->
+  <div class="profile-panel">
+    <h2>👤 Your Profile</h2>
+    <img src="" id="profilePic" class="profile-img" alt="Profile Picture" />
+    <input type="file" accept="image/*" onchange="loadProfilePic(event)" />
+    <input type="text" id="username" placeholder="Your Name" />
+    <input type="number" id="age" placeholder="Your Age" />
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <h2>Sessions</h2>
+    <button id="newChatBtn" onclick="startNewChat()">+ New Chat</button>
+    <ul id="history"></ul>
+  </div>
+
+  <!-- Main Chat Window -->
+  <div class="main">
+    <header>
+      <div>
+        <h1>Healing Path</h1>
+        <p>A space to reflect and be heard</p>
+      </div>
+    </header>
+
+    <div id="fadeInGreeting">We are here for you buddy</div>
+
+    <div id="chatbox"></div>
+
+    <form onsubmit="sendMessage(); return false;">
+      <input type="text" id="userInput" placeholder="How are you feeling today?" />
+      <button type="submit">Send</button>
+    </form>
+  </div>
+
+  <script>
+    let currentChat = [];
+    let allChats = [];
+    const chatbox = document.getElementById("chatbox");
+    const historyList = document.getElementById("history");
+  
+    function appendMessage(text, sender) {
+      const div = document.createElement("div");
+      div.className = `message ${sender}`;
+      div.textContent = text;
+      chatbox.appendChild(div);
+      chatbox.scrollTop = chatbox.scrollHeight;
+    }
+  
+    async function sendMessage() {
+      const input = document.getElementById("userInput");
+      const text = input.value.trim();
+      if (!text) return;
+  
+      appendMessage(text, "user");
+      currentChat.push({ sender: "user", text });
+      input.value = "";
+  
+      // Fetch AI response from the server
+      try {
+        const reply = await getAIResponse(text);
+        appendMessage(reply, "ai");
+        currentChat.push({ sender: "ai", text: reply });
+      } catch (error) {
+        appendMessage("Sorry, something went wrong. Please try again later.", "ai");
+      }
+    }
+  
+    async function getAIResponse(message) {
+      try {
+        const response = await fetch("/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ message }),
+        });
+  
+        if (!response.ok) {
+          throw new Error("Failed to fetch AI response");
+        }
+  
+        const data = await response.json();
+        return data.reply;
+      } catch (error) {
+        console.error("Error fetching AI response:", error);
+        throw error;
+      }
+    }
+  
+    function startNewChat() {
+      if (currentChat.length > 0) {
+        const title = currentChat[0]?.text.slice(0, 20) + "...";
+        const li = document.createElement("li");
+        li.textContent = title;
+        const index = allChats.push(currentChat) - 1;
+  
+        li.onclick = () => loadChat(index);
+        historyList.appendChild(li);
+      }
+      chatbox.innerHTML = "";
+      currentChat = [];
+      appendMessage("Let's start fresh. What's on your mind?", "ai");
+    }
+  
+    function loadChat(index) {
+      chatbox.innerHTML = "";
+      currentChat = [...allChats[index]];
+      currentChat.forEach(msg => appendMessage(msg.text, msg.sender));
+    }
+  
+    function loadProfilePic(event) {
+      const img = document.getElementById("profilePic");
+      img.src = URL.createObjectURL(event.target.files[0]);
+    }
+  
+    window.onload = () => {
+      document.getElementById("fadeInGreeting").style.opacity = "1";
+    };
+  </script>
+</body>
+</html>
